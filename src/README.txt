@@ -1,0 +1,1 @@
+To run the code simply put a copy of an appropriate InputParams.py file into the source directory and run the main.py code. Keep copies of your input files in the input_files directory for safe keeping.
