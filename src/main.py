@@ -1,22 +1,14 @@
-#######################################################################################
-# The purpose of this Python script is to generate the solution to the standard 1D SOD
-# shock tube problem. It solves the unsteady compressible Euler equations.
-#
-#
-# Author: Christopher Neal
-#
-# Date:		06-18-2015
-# Updated:	06-18-2015
-#
-#######################################################################################
-#
-# Information:
-# 	This particular solver uses the following schemes:
-#		1.) 3 Stage Runge-Kutta time discretization scheme.
-#		2.) HLLC flux approximation for the cell face fluxes.
-#		3.) Finite volume treatment of the governing equations.
+"""
+The purpose of this Python script is to generate the solution to the standard 1D SOD
+shock tube problem. It solves the unsteady compressible Euler equations.
+ Information:
+ This particular solver uses the following schemes:
+		1.) 3 Stage Runge-Kutta time discretization scheme.
+		2.) HLLC flux approximation for the cell face fluxes.
+		3.) Finite volume treatment of the governing equations.
+"""
 
-#Python Modules
+#Modules
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -29,22 +21,35 @@ from RK_Method import *
 from WriteSolution import *
 from Compute_Primitives import *
 
-#Create X Vector and initialize for plotting solution
+
+
+class Main(object):
+    def __init__(self, input_file_name):
+        self.initial_program_state = {}
+        input_parser = ip.InputFileParser(input_file_name)
+        self.initial_program_state['input_parser'] = input_parser
+
+        if input_parser.user_input_data['flux_type'].lower() == 'roe':
+            flux_scheme = fs.RoeFluxScheme()
+
+
+
+#Create 1D coordinate vector and initialize for plotting solution
 x = np.zeros(Nx)
 x[0] = dx/2.0
-for i in range(1, Nx,1):
+for i in range(1, Nx, 1):
 	x[i] = x[i-1] + dx
 
-# Create the array for storing the conserved solution variables in the domain. We
-# are solving a system of 3 equations, so 3 columns are allocated.
-G = np.zeros((Nx,3)) # Array for holding the conserved cell variables( rho, rho*u,rho*E )
+# Create array for storing the conserved solution variables in the domain. 
+# We are solving a system of 3 equations, so 3 columns are allocated.
+G = np.zeros((Nx,3)) # Array for holding the conserved cell variables(rho, rho*u, rho*E)
 
 
 # Initialize the domain
-G=Initialize_Domain()
+G = Initialize_Domain()
 
 #Write Initial Domain Data
-write_solution(x,G,0,0*dt)
+write_solution(x, G, 0, 0*dt)
 
 
 if(Real_Time_Plot == True):
@@ -57,17 +62,14 @@ Elapsed_Time = 0.0
 
 # Time Stepping Loop
 for i in range(0,Nt,1):
-
 	G_New = RK_3_Stepping(G)	
 
 	if(Real_Time_Plot == True):
-
 		Prim = np.zeros((Nx,4))
 		Prim = compute_primitives(G_New)
 
 		#Plot Solution
 		if(i == 0 ):
-			
 			#Set up the plots
 			ax = fig.add_subplot(221)
 

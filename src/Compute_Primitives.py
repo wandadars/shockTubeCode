@@ -1,18 +1,11 @@
-#######################################################################################
-# The purpose of this function is to compute the values of the primitive variables from
-# the flow field solution variables.
-#
-# Author: Christopher Neal
-#
-# Date: 06-22-2015
-# Updated: 06-24-2015
-#
-#######################################################################################
+from Input_Params import *
+import numpy as np
 
 def compute_primitives(CellValues):
-
-	from Input_Params import *
-	import numpy as np
+    """
+    The purpose of this function is to compute the values of the primitive variables from
+    the flow field solution variables.
+    """
 
 	Primitives = np.zeros((Nx,4)) # rho, u, P, T	
 

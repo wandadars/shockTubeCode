@@ -1,23 +1,15 @@
-#######################################################################################
-# The purpose of this function is to output solution data to a file for post processing
-# at a later time.
-#
-# Author: Christopher Neal
-#
-# Date: 06-24-2015
-# Updated: 06-24-2015
-#
-#######################################################################################
-#
-# Information: This function takes in the conserved variables array, G
+from Input_Params import *
+from Compute_Primitives import *
+import numpy as np
+import os
+from cmath import sqrt
 
 def write_solution(x,CellValues,iteration,currentTime):
-	
-	from Input_Params import *
-	from Compute_Primitives import *
-	import numpy as np
-	import os
-	from cmath import sqrt
+    """
+    The purpose of this function is to output solution data to a file for post processing
+    at a later time.
+        Information: This function takes in the conserved variables array, G
+	"""
 	# CellValues is a Nx X 3 element vector that contains the conserved variables.
 
 	# Before writing solution check to see if the output directory exists
@@ -25,7 +17,6 @@ def write_solution(x,CellValues,iteration,currentTime):
 	if(os.path.isdir(path+'/output') == False): #Directory does not exist. Create it
 		os.makedirs('output')
 	
-
 	OutPath = path+'/output'
 	
 	#Enter into output directory and print solution
@@ -45,16 +36,12 @@ def write_solution(x,CellValues,iteration,currentTime):
 	  #Output to file
 	  for i in range(0,Nx,1):
 	    outputString = str(x[i])+ '\t' +str(Prim[i,0])+'\t'+str(Prim[i,1])+'\t'+str(Prim[i,2])+'\t'+str(Prim[i,3])+'\n'
-
 	    target.write(outputString)
-
 
 	  target.close()
 
 
 	elif(Output_Format == 1):	#VTK Legacy format
-
-
 	  #Determine appropriate number of padding zeros for output
 	  pad = '00000'
 	  if(iteration < 10):
@@ -69,10 +56,10 @@ def write_solution(x,CellValues,iteration,currentTime):
 	  	pad = ''
 
 	  #Create filename
-          filename = 'solution_'+ pad + str(iteration)+'.vtk'
+      filename = 'solution_'+ pad + str(iteration)+'.vtk'
 
-          #Open output file
-          target = open(filename, 'w')
+      #Open output file
+      target = open(filename, 'w')
 
 	  #Write the first line of the VTK file
 	  target.write('# vtk DataFile Version 3.1 \n')

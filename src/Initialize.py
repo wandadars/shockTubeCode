@@ -12,7 +12,6 @@
 #                                                                                      
 
 def Initialize_Domain():
-
 	from Input_Params import *	
 	import numpy as np
 	

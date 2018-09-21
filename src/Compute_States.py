@@ -9,38 +9,29 @@
 #
 #######################################################################################
 
+from math import sqrt
+import numpy as np
+import EOS as eos
+from Input_Params import *
 def Compute_HLLC_Cell_States(CellValues):
-	"""###################################################################################
-	# The purpose of this function is to compute a set of state variables for a cell to be
-	# used in the HLLC flux calculation.
-	#
-	# Author: Christopher Neal
-	#
-	# Date: 06-18-2015
-	# Updated: 06-18-2015
-	#
-	######################################################################################
-	#
-	# Information: This function takes in a 2x3 array of cell left & right cell conservative
-	#              variables and outputs a 2x5 array that contains the necessary cell variables
-	#              for the HLLC flux scheme to estimate a flux. A combination of primitive and
-	#              conserved variables.
 	"""
-	from math import sqrt
-	import numpy as np
-	import EOS as eos
-	from Input_Params import *
-
+	The purpose of this function is to compute a set of state variables for a cell to be
+	used in the HLLC flux calculation.
+	 Information: This function takes in a 2x3 array of cell left & right cell conservative
+	      variables and outputs a 2x5 array that contains the necessary cell variables
+	      for the HLLC flux scheme to estimate a flux. A combination of primitive and
+	      conserved variables.
+	"""
 
 	#DEBUG
-        if(Debug_Flag==1):
-                print 'Left Density = ' + str(CellValues[0,0])
-                print 'Left Momentum = ' + str(CellValues[0,1])
-                print 'Left Energy = ' + str(CellValues[0,2])
+    if(Debug_Flag==1):
+        print 'Left Density = ' + str(CellValues[0,0])
+        print 'Left Momentum = ' + str(CellValues[0,1])
+        print 'Left Energy = ' + str(CellValues[0,2])
 
-                print 'Right Density = ' + str(CellValues[1,0])
-                print 'Right Momentum = ' + str(CellValues[1,1])
-                print 'Right Energy = ' + str(CellValues[1,2])
+        print 'Right Density = ' + str(CellValues[1,0])
+        print 'Right Momentum = ' + str(CellValues[1,1])
+        print 'Right Energy = ' + str(CellValues[1,2])
 
 
 	#Create an array to hold left and right state data
@@ -94,11 +85,6 @@ def Compute_AUSMPlus_Cell_States(CellValues):
 	#              for the HLLC flux scheme to estimate a flux. A combination of primitive and
 	#              conserved variables.
 	"""
-	from math import sqrt
-	import numpy as np
-	import EOS as eos
-	from Input_Params import *
-
 
 	#DEBUG
         if(Debug_Flag==1):
@@ -163,11 +149,6 @@ def Compute_ROE_Cell_States(CellValues):
 	#              for the ROE flux scheme to estimate a flux. A combination of primitive and
 	#              conserved variables.
 	"""
-	from math import sqrt
-	import numpy as np
-	import EOS as eos
-	from Input_Params import *
-
 
 	#DEBUG
         if(Debug_Flag==1):
