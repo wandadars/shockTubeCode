@@ -14,24 +14,25 @@ class IdealEOS(EOS):
         self.gamma = gamma
         self.r_gas = r_gas
 
-    def energy(pressure, density):
-        return pressure / (density * (self.gamma - 1))
+    def energy(cell_state):
+        return cell_state['rho*e'] / cell_state['rho']
 
-    def pressure(density, energy, velocity):
-        return (self.gamma - 1.0) * (density*energy - 0.5*velocity**2))
+    def energy_PTU(pressure, temperature, velocity):
+        return (self.r_gas * temperature / (self.gamma-1)) + 0.5*velocity**2
+    
+    def energy_PRU(pressure, density, velocity):
+        return pressure / (density*(self.gamma-1)) + 0.5*velocity**2
+    
+    def pressure(cell_state):
+	    # P = (gamma-1)*(rho*e - (1/2)*rho*u*u)
+        return (self.gamma - 1.0) * (cell_state['rho*e'] - 0.5*cell_state['rho*u']**2 / cell_state['rho'])
 
-    def density(pressure, temperature)
+    def density(cell_state)
+        return cell_state['rho']
+
+    def density_PT(pressure, temperature):
         return pressure / (self.r_gas * temperature)
 
-def IDEAL_EOS_P(CellValue):
-	from Input_Params import *
-
-	# CellValues is a 3 element vector that contains the conserved variables that are
-	# used for computing a value from the equation of state.
-
-	#This particular function computes pressure
-	# P = (gamma-1)*(rho*e - (1/2)*rho*u*u)
-	P = (gamma-1.0)*(CellValue[2] - 0.5*CellValue[1]*(CellValue[1]/CellValue[0]) )
-
-	return P
-
+    def soundspeed(cell_state):
+        # a = sqrt(gamma*(gamma-1)*(e-0.5*u*u))
+        return np.sqrt(self.gamma * (self.gamma-1) * (cell_state['rho*e']/cell_state['rho'] -0.5*cell_state['rho*u']**2 / cell_state['rho'])
