@@ -27,6 +27,10 @@ class IdealEOS(EOS):
 	    # P = (gamma-1)*(rho*e - (1/2)*rho*u*u)
         return (self.gamma - 1.0) * (cell_state['rho*e'] - 0.5*cell_state['rho*u']**2 / cell_state['rho'])
 
+    def temperature(cell_state):
+        #T = ( e - (1/2)u*u) * (gamma-1)/R
+        return ((self.gamma - 1) / self.r_gas) * (cell_value['rho*e'] / cell_value['rho'] - 0.5*(cell_value['rho*u'] / cell_value['rho'])**2)
+
     def density(cell_state)
         return cell_state['rho']
 

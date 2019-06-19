@@ -5,8 +5,21 @@ class FaceFluxScheme(object):
         self.bc_left = bc_left
         self.bc_right = bc_right
 
-    def compute_face_fluxes(cell_values):
+    def compute_flux(cell_values):
         raise NotImplementedError
+
+    def compute_states(self, adjacent_cell_values):
+        raise NotImplementedError
+
+    def print_cell_values(self, adjacent_cell_values):
+        print 'Left Density = ' + str(adjacent_cell_values['left_cell']['rho'])
+        print 'Left Momentum = ' + str(adjacent_cell_values['left_cell']['rho*u'])
+        print 'Left Energy = ' + str(adjacent_cell_values['left_cell']['rho*e'])
+
+        print 'Right Density = ' + str(adjacent_cell_values['right_cell']['rho'])
+        print 'Right Momentum = ' + str(adjacent_cell_values['right_cell']['rho*u'])
+        print 'Right Energy = ' + str(adjacent_cell_values['right_cell']['rho*e'])
+
 
     def compute_cell_fluxes(cell_value):
         """
@@ -24,10 +37,10 @@ class FaceFluxScheme(object):
         cell_flux.append(cell_value['rho*u'])
 
         #Store flux for conservation of momentum equation i.e. rho*u^2 + p
-        cell_flux.append((density * velocity**2) + eos.pressure(cell_value))
+        cell_flux.append((cell_value['rho'] * (cell_value['rho*u'] / cell_value['rho'])**2) + eos.pressure(cell_value))
 
         #Store flux for conservation of energy equation i.e. u*(rho*e + p)
-        cell_flux.append(velocity * (density * energy + eos.pressure(cell_value)))
+        cell_flux.append((cell_value['rho*u'] / cell_value['rho']) * (cell_value['rho*e'] + eos.pressure(cell_value)))
 
         return cell_flux
 
@@ -35,13 +48,9 @@ class FaceFluxScheme(object):
     def compute_cell_face_fluxes(G):
         """
         The purpose of this function is to compute the values of the cell face fluxes.
-
-        Information: This function takes in a cell data Nx X 3 array that holds the 3 conserved
-        variables for all cells in the domain.
-            Output: A Nx X 3 X 2 array of the fluxes for mass, momentum,and energy at the west
-            and east faces for each cell in the domain
+        
+        G: list of cells in domain
         """
-
 
         #Holds to face fluxes on the left and right faces for each cell
         cell_face_fluxes = [{'left': 0, 'right': 0} for i in range(len(G))]
@@ -52,93 +61,40 @@ class FaceFluxScheme(object):
         #Compute and store left face flux for the first cell
         adjacent_face_cells['left_cell'] = self.bc_left.compute_bc_conserved()
         adjacent_face_cells['right_cell'] = G[0]
-
-        self.compute_flux(adjacent_face_cells)
-        if(FluxSchemeInput == 0):       #HLLC Flux
-            FaceFluxes[0,:,0] = FFS.hllc_flux(temp)
-
-        elif(FluxSchemeInput == 1):     #ROE Flux
-            FaceFluxes[0,:,0] = FFS.roe_flux(temp)
-
+        cell_face_fluxes[0]['left'] = self.compute_flux(adjacent_face_cells)
 
         #Compute and store right face flux for the first cell
-        temp[0,:] = G[0,:]
-        temp[1,:] = G[1,:]
-
-        if(FluxSchemeInput == 0):   #HLLC Flux
-            FaceFluxes[0,:,1] = FFS.hllc_flux(temp)
-
-        elif(FluxSchemeInput == 1): #ROE Flux
-            FaceFluxes[0,:,1] = FFS.roe_flux(temp)
+        adjacent_face_cells['left_cell'] = G[0]
+        adjacent_face_cells['right_cell'] = G[1]
+        cell_face_fluxes[0]['right'] = self.compute_flux(adjacent_face_cells)
         
-        
-        #Inner cells have 2 face fluxes that must be determined
-        for j in range(1,Nx-1,1):
-            #DEBUG
-            if(Debug_Flag == 1):
-                print 'Debug Info for Cell: '+ str(j+1) +'\n'
-
-            #DEBUG
-            if(Debug_Flag == 1):
-                print 'Left Cell Face Flux:\n'
-
-            #Compute and store left face flux
-            if(FluxSchemeInput == 0):   #HLLC Flux
-                #For this type of flux scheme the result of this will be the same as for the previous
-                #cell's right face flux
-                FaceFluxes[j,:,0] = FaceFluxes[j-1,:,1]
-            elif(FluxSchemeInput == 1): #Roe Flux
-                #For this type of flux scheme the result of this will be the same as for the previous
-                #cell's right face flux
-                FaceFluxes[j,:,0] = FaceFluxes[j-1,:,1]
-
-            #DEBUG
-            if(Debug_Flag == 1):
-                print 'Right Cell Face Flux:\n'
+        #Inner cells have 2 face fluxes that must be determined, but the left
+        #flux on an inner cell is the same as the right flux of the cell to the left
+        #of the cell under consideration.
+        for i in range(1, len(G) - 1):
+            cell_face_fluxes[i]['left'] = cell_face_fluxes[i-1]['right']
 
             #Compute and store right face flux
-            temp[0,:] = G[j,:]
-            temp[1,:] = G[j+1,:]
-
-            if(FluxSchemeInput == 0):   #HLLC Flux
-                FaceFluxes[j,:,1] = FFS.hllc_flux(temp)
-            elif(FluxSchemeInput == 1): #Roe Flux
-                FaceFluxes[j,:,1] = FFS.roe_flux(temp)
+            adjacent_face_cells['left_cell'] = G[i]
+            adjacent_face_cells['left_cell'] = G[j+1]
+            cell_face_fluxes[i]['right'] = self.compute_flux(adjacent_face_cells)
 
 
-        #The Last Cell has a prescribed flux on its right face from the boundary
-        if(Debug_Flag == 1):
-            print 'Debug Info for Cell: '+ str(Nx) +'\n'
-            print 'Flux across Left Cell Face'
-            
 
-        #Compute and store left face flux
-        temp[0,:] = G[Nx-2,:]   #Remember arrays go from 0 to Nx-1 for Nx elements
-        temp[1,:] = G[Nx-1,:]
+        #The Last Cell's left face flux is the same as the right flux from the cell to its left 
+        cell_face_fluxes[-1]['left'] = cell_face_fluxes[-2]['right']
+        
+        #Compute and store right face flux due to boundary condition
+        adjacent_face_cells['left_cell'] = G[-1]
+        adjacent_face_cells['right_cell'] = self.bc_right.compute_bc_conserved()
+        cell_face_fluxes[-1]['right'] = self.compute_flux(adjacent_face_cells)
 
-        if(FluxSchemeInput == 0):   #HLLC Flux
-            FaceFluxes[Nx-1,:,0] = FFS.hllc_flux(temp)
-
-        elif(FluxSchemeInput == 1): #Roe Flux
-            FaceFluxes[Nx-1,:,0] = FFS.roe_flux(temp)
-
-        #Compute and store right face flux
-        temp[0,:] = G[Nx-1,:]
-        temp[1,:] = BCONSERV.compute_BC_conserved(1)
-
-        if(FluxSchemeInput == 0):       #HLLC Flux
-            FaceFluxes[Nx-1,:,1] = FFS.hllc_flux(temp)
-
-        elif(FluxSchemeInput == 1):     #Roe Flux
-            FaceFluxes[Nx-1,:,1] = FFS.roe_flux(temp)
-
-
-        return FaceFluxes
+        return cell_face_fluxes
 
 
 class HLLCFluxScheme(FaceFluxScheme):
-    def __init__(self, eos
-        pass
+    def __init__(self, eos, bc_left, bc_right): 
+        super(HLLCFluxScheme, self).__init__(eos, bc_left, bc_right)
 
     def compute_flux(cell_values):
         """
@@ -157,7 +113,7 @@ class HLLCFluxScheme(FaceFluxScheme):
         #some quanity that is related to them.
 
         # Compute variables that are needed for the flux calculation and store in array
-        states = self.compute_cell_states(cell_states)
+        states = self.compute_states(cell_states)
         
         #Store states into named variables to make calculations easier to read
         uL = states['u_left']
@@ -198,9 +154,9 @@ class HLLCFluxScheme(FaceFluxScheme):
             if p_star <= pL :
                 qL = 1.0	
             else:
-                qL = sqrt( 1 + ((gamma+1)/(2*gamma))*(p_star/pL - 1))		
+                qL = np.sqrt( 1 + ((gamma+1)/(2*gamma))*(p_star/pL - 1))		
 
-            SL = uL - aL*qL
+            SL = uL - aL * qL
             if p_star <= pR:
                 qR = 1.0
             else:
@@ -208,14 +164,14 @@ class HLLCFluxScheme(FaceFluxScheme):
             
             SR = uR + aR*qR
 
-        elif(Wave_Estimate == 1): #Use Min-Mod Selection
-            SL = min(uL-aL,uR-aR)
-            SR = max(uL+aL,uR+aR)
+        elif Wave_Estimate == 1 : #Use Min-Mod Selection
+            SL = min(uL-aL, uR-aR)
+            SR = max(uL+aL, uR+aR)
 
         #Compute middle wave speed
         S_star = (pR - pL + rhoL * uL * (SL - uL) - rhoR * uR * (SR - uR)) / (rhoL * (SL - uL) - rhoR *(SR - uR))
 
-        if(Debug_Flag == 1):
+        if Debug_Flag == 1 :
             print 'SL = ' + str(SL)
             print 'SR = ' + str(SR)
             print 'S* = ' + str(S_star)	
@@ -271,27 +227,56 @@ class HLLCFluxScheme(FaceFluxScheme):
             print 'Error in Flux calculations in function hllc_flux'
 
 
+    def compute_states(self, adjacent_cell_values):
+        #States is a dictionary that contains the relevant state information for the left
+        #and right states that is computed from the conserved cell values i.e. primitive values.
+        states = {} 
+
+        #Store the velocities of the states 
+        states['u_left'] = adjacent_cell_values['left_cell']['rho*u'] / adjacent_cell_values['left_cell']['rho'] #Left velocity
+        states['u_right'] =  adjacent_cell_values['right_cell']['rho*u'] / adjacent_cell_values['right_cell']['rho'] #Right velocity
+        
+        #Compute speed of sound(SS)
+        states['soundspeed_left'] = self.eos.soundspeed(adjacent_cell_values['left_cell']) #Left SS
+        states['soundspeed_right'] = self.eos.soundspeed(adjacent_cell_values['right_cell']) #Right SS
+        
+        #Store density
+        states['rho_left'] = adjacent_cell_values['left_cell']['rho']
+        states['rho_right'] = adjacent_cell_values['right_cell']['rho']
+
+        #Store Pressure
+        states['pressure_left'] = self.eos.pressure(adjacent_cell_values['left_cell'])
+        states['pressure_right'] = self.eos.pressure(adjacent_cell_values['right_cell'])
+
+        #Store rho*e
+        states['rho*e_left'] = adjacent_cell_values['left_cell']['rho*e']
+        states['rho*e_right'] = adjacent_cell_values['right_cell']['rho*e']
+
+        return states
+
+
+
 
 class ROEFluxScheme(FaceFluxScheme):
-    def __init__(self, eos
-        pass
+    def __init__(self, eos, bc_left, bc_right): 
+        super(ROEFluxScheme, self).__init__(eos, bc_left, bc_right)
 
-    def compute_flux(cell_values):
+    def compute_flux(self, adjacent_cell_values):
         # Compute variables that are needed for the flux calculation and store in array
-        states = CS.Compute_ROE_Cell_States(CellValues)
+        states = self.compute_states(adjacent_cell_values)
 
         #Store states into named variables to make calculations easier to read
-        uL = states[0,0]
-        uR = states[1,0]
+        uL = states['u_left']
+        uR = states['u_right']
 
-        rhoL = states[0,1]
-        rhoR = states[1,1]
+        rhoL = states['rho_left']
+        rhoR = states['rho_right']
 
-        hL = states[0,2] #Enthalpy.
-        hR = states[1,2]
+        hL = states['enthalpy_left'] #Enthalpy.
+        hR = states['enthalpy_right']
 
         #DEBUG
-        if(Debug_Flag == 1):
+        if Debug_Flag == 1 :
             print '\nLeft & Right States Cell Face'
             print 'uL = ' + str(uL)
             print 'uR = ' + str(uR)
@@ -302,9 +287,9 @@ class ROEFluxScheme(FaceFluxScheme):
 
 
         #Compute density averaged quantities
-        hBar = (sqrt(rhoL)*hL + sqrt(rhoR)*hR)/(sqrt(rhoL) + sqrt(rhoR))
-        uBar = (sqrt(rhoL)*uL + sqrt(rhoR)*uR)/(sqrt(rhoL) + sqrt(rhoR))
-        cBar = sqrt((gamma-1)*(hBar - 0.5*uBar*uBar))
+        hBar = (np.sqrt(rhoL) * hL + np.sqrt(rhoR) * hR) / (np.sqrt(rhoL) + np.sqrt(rhoR))
+        uBar = (np.sqrt(rhoL) * uL + np.sqrt(rhoR) * uR) / (np.sqrt(rhoL) + np.sqrt(rhoR))
+        cBar = np.sqrt((gamma-1) * (hBar - 0.5*uBar*uBar))
 
         #Define characteristic speeds
         lambda1 = uBar - cBar
@@ -312,49 +297,74 @@ class ROEFluxScheme(FaceFluxScheme):
         lambda3 = uBar + cBar
 
         #Create r_p vectors
-        r_1 = np.zeros(3)
-        r_1[0] = 1
-        r_1[1] = uBar - cBar
-        r_1[2] = hBar - uBar*cBar
+        r_1 = []
+        r_1.append(1)
+        r_1.append(uBar - cBar)
+        r_1.append(hBar - uBar*cBar)
 
-        r_2 = np.zeros(3)
-        r_2[0] = 1
-        r_2[1] = uBar
-        r_2[2] = 0.5*uBar*uBar
+        r_2 = []
+        r_2.append(1)
+        r_2.append(uBar)
+        r_2.append(0.5*uBar*uBar)
 
-        r_3 = np.zeros(3)
-            r_3[0] = 1
-            r_3[1] = uBar + cBar
-            r_3[2] = hBar + uBar*cBar
-
+        r_3 = []
+        r_3.append(1)
+        r_3.append(uBar + cBar)
+        r_3.append(hBar + uBar*cBar)
 
         #Compute the r^p vectors for computing alpha_p
-        r1 = np.zeros(3)
-        r1[0] = (uBar/(4*cBar))*(2 + (gamma-1)*(uBar/cBar))
-        r1[1] = (-1.0/(2.0*cBar))*(1 + (gamma-1)*(uBar/cBar))
-        r1[2] = 0.5*(gamma-1)*(1/(cBar*cBar))
+        r1 = []
+        r1.append((uBar / (4*cBar)) * (2 + (gamma-1) * (uBar/cBar)))
+        r1.append((-1.0 / (2.0*cBar)) * (1 + (gamma-1) * (uBar/cBar)))
+        r1.append(0.5 * (gamma-1) * (1 / (cBar*cBar)))
 
-        r2 = np.zeros(3)
-            r2[0] = 1 - 0.5*(gamma-1)*((uBar*uBar)/(cBar*cBar))
-            r2[1] = (gamma-1)*(uBar/(cBar*cBar))
-            r2[2] = -(gamma-1)*(1.0/(cBar*cBar))
+        r2 = []
+        r2.append(1 - 0.5 * (gamma-1) * ((uBar * uBar) / (cBar*cBar)))
+        r2.append((gamma-1) * (uBar / (cBar*cBar)))
+        r2.append(-(gamma-1) * (1.0 / (cBar*cBar)))
 
-        r3 = np.zeros(3)
-            r3[0] = -(uBar/(4*cBar))*(2 - (gamma-1)*(uBar/cBar))
-            r3[1] = (1.0/(2.0*cBar))*(1 - (gamma-1)*(uBar/cBar))
-            r3[2] = 0.5*(gamma-1)*(1/(cBar*cBar))
+        r3 = []
+        r3.append(-(uBar / (4*cBar)) * (2 - (gamma-1) * (uBar / cBar)))
+        r3.append((1.0 / (2.0 * cBar)) * (1 - (gamma-1) * (uBar / cBar)))
+        r3.append(0.5 * (gamma-1) * (1 / (cBar * cBar)))
 
-        alpha1 = np.inner(r1 , CellValues[1,:] - CellValues[0,:])
-        alpha2 = np.inner(r2 , CellValues[1,:] - CellValues[0,:])
-        alpha3 = np.inner(r3 , CellValues[1,:] - CellValues[0,:])
+        cell_diffs = [adjacent_cell_values[1][key] - adjacent_cell_values[0][key] for key in adjacent_cell_values[0].keys()]
+        alpha1 = sum([r_val * diff for zip(r1, cell_diffs)]) 
+        alpha2 = sum([r_val * diff for zip(r2, cell_diffs)]) 
+        alpha3 = sum([r_val * diff for zip(r3, cell_diffs)]) 
 
 
-        Term1 = abs(lambda1)*alpha1*r_1
-        Term2 = abs(lambda2)*alpha2*r_2
-        Term3 = abs(lambda3)*alpha3*r_3
-        FluxAverage = 0.5*(CF.Compute_Cell_Fluxes(CellValues[1,:]) + CF.Compute_Cell_Fluxes(CellValues[0,:]))
+        Term1 = abs(lambda1) * alpha1 * r_1
+        Term2 = abs(lambda2) * alpha2 * r_2
+        Term3 = abs(lambda3) * alpha3 * r_3
+        FluxAverage = 0.5 * (self.compute_cell_flux(adjacent_cell_values[1]) + self.compute_cell_fluxes(adjacent_cell_values[0]))
 
-        FluxEstimates = FluxAverage -0.5*(Term1 + Term2 + Term3)
+        FluxEstimates = FluxAverage - 0.5 * (Term1 + Term2 + Term3)
         return FluxEstimates
+
+
+
+    def compute_cell_states(self, adjacent_cell_values):
+        """
+        The purpose of this function is to compute a set of state variables for a cell to be
+        used in the ROE flux calculation.
+        """
+        #States is a dictionary that contains the relevant state information for the left
+        #and right states that is computed from the conserved cell values i.e. primitive values.
+        states = {}
+
+        #Store the velocities of the states
+        states['u_left'] = adjacent_cell_values['left_cell']['rho*u'] / adjacent_cell_values['left_cell']['rho'] #Left velocity
+        states['u_right'] = adjacent_cell_values['right_cell']['rho*u'] / adjacent_cell_values['right_cell']['rho'] #Right velocity
+
+        #Store density
+        states['rho_left'] = adjacent_cell_values['left_cell']['rho']
+        states['rho_right'] = adjacent_cell_values['right_cell']['rho']
+
+        #Store h(enthalpy)
+        states['enthalpy_left'] = ( adjacent_cell_values['left_cell']['rho*e'] + self.eos.pressure(adjacent_cell_values['left_cell'])  ) / adjacent_cell_values['left_cell']['rho']
+        states['enthalpy_right'] = ( adjacent_cell_values['right_cell']['rho*e'] + self.eos.pressure(adjacent_cell_values['right_cell'])  ) / adjacent_cell_values['right_cell']['rho']
+
+        return states
 
 

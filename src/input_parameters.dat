@@ -5,6 +5,8 @@ Nx  800	    # Number of cells to create in the domain
 dt  2.5e-4  # Timestep
 Nt  2000    # Number of timesteps to take
 
+time_integrator RK4
+
 #solution printing frequency
 Print_Time  2.5e-3
 
@@ -25,7 +27,7 @@ wave_estimate  1	#0-Method 1, 1-TORO's Method
 flux_scheme HLLC	#0-HLLC, 1-ROE, 2-AUSM+, 3-WENO5
 
 #Initialization Parameters
-Init_Type  0
+init_yype  0
 X_Loc_1  0.5
 
 #Left Side

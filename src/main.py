@@ -8,10 +8,14 @@ shock tube problem. It solves the unsteady compressible Euler equations.
 		3.) Finite volume treatment of the governing equations.
 """
 
+import sys
+
 #Modules
 import input_parser as ip
 import flux_schemes as fs
-
+import solver as slv
+import equation_of_state as eos
+import rk_method
 
 class Main(object):
     def __init__(self, input_file_name):
@@ -20,15 +24,29 @@ class Main(object):
         self.initial_program_state['input_parser'] = input_parser
 
         if input_parser.user_input_data['flux_type'].lower() == 'roe':
-            flux_scheme = fs.ROEFluxScheme()
+            flux_calculator = fs.ROEFluxScheme()
         if input_parser.user_input_data['flux_type'].lower() == 'hllc':
-            flux_scheme = fs.HLLCFluxScheme()
+            flux_calculator = fs.HLLCFluxScheme()
 
+        if input_parser.user_input_data['eos'].lower() == 'ideal':
+            r_gas = float(input_parser.user_input_data['gamma'])
+            gamma = float(input_parser.user_input_data['R_gas'])
+            eos_object = eos.IdealEOS(gamma, r_gas)
 
+        if input_parser.user_input_data['init_type'].lower() == '0':
+            flow_initializer = slv.ShockTubeInitializer(input_parser, eos_object)
 
+        if input_parser.user_input_data['time_integrator'].lower() == 'rk3':
+            time_integrator = rk_method.RK3Integrator(flux_scheme)
 
+        solution = slv.Solution(input_parser, flow_initializer, time_integrator, solution_writer_object)
+        
+        self.solver = slv.Solver(input_parser, solution)
 
-main = Main()
+    def run(self):
+        self.solver.begin_timestepping()
 
+file_input = sys.argv[1]
+main = Main(file_input)
 Main.run()
 

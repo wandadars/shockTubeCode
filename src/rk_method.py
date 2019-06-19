@@ -1,42 +1,29 @@
-#######################################################################################
-# The purpose of this function is to use a Runge-kutta time stepping scheme to advance
-# the conserved variables in time.
-#
-# Author: Christopher Neal
-#
-# Date: 06-18-2015
-# Updated: 06-24-2015
-#
-#######################################################################################
-#
-# Information: This function takes in the conserved variables for all cells and computes
-#          the new value of the conserved variable at the new time using RK method.
-
-
 import numpy as np
-import Compute_Face_Fluxes as FF
-from Input_Params import *
+
 
 class TimeIntegrator(object):
-    def __init__(self):
-        pass
+    def __init__(self, flux_calculator):
+        self.flux_calculator = flux_calculator
+
 
 class RK3Integrator(TimeIntegrator):
     def timestep(G):
+
         #Compute initial face fluxes
-        FaceFluxes = FF.compute_cell_face_fluxes(G)
+        face_fluxes = self.flux_calculator.compute_face_fluxes(G) 
         
         #RK step # 1
-        G1 = np.zeros((Nx,3))
-        k1 = np.zeros((Nx,3))
-
-        for i in range(0,Nx,1):
+        G1 = []
+        k1 = []
+        for i, cell in enumerate(G):
             #DEBUG
-            if(Debug_Flag == 1):
+            if Debug_Flag == 1:
                 print 'Computing Fluxes for Cell: ' + str(i+1)
             
             #First RK Step Variable
-            k1[i,:] = (FaceFluxes[i,:,0] - FaceFluxes[i,:,1])*(1.0/dx)
+            for var in cell.keys():
+                k1.append( (face_fluxes[i]['left'] - face_fluxes[i]['right']) * (1.0 / dx) )
+            
             G1[i,:] = G[i,:] + dt*(k1[i,:]) # Explicit Euler approximation
 
 
